@@ -27,9 +27,6 @@ Usage
     from opentelemetry.instrumentation.botocore import BotocoreInstrumentor
     from opentelemetry.instrumentation.aws_lambda import AwsLambdaInstrumentor
 
-    # Enable instrumentation
-    BotocoreInstrumentor().instrument()
-    AwsLambdaInstrumentor().instrument()
 
     # Lambda function
     def lambda_handler(event, context):
@@ -38,6 +35,10 @@ Usage
             print(bucket.name)
 
         return "200 OK"
+
+    # Enable instrumentation
+    BotocoreInstrumentor().instrument()
+    AwsLambdaInstrumentor().instrument() # Must be placed below the Lambda function to instrument it.
 
 API
 ---
@@ -161,17 +162,13 @@ def _determine_parent_context(
     return event_context_extractor(lambda_event)
 
 
-def _set_api_gateway_v1_proxy_attributes(
-    lambda_event: Any, span: Span
-) -> Span:
+def _set_api_gateway_v1_proxy_attributes(lambda_event: Any, span: Span) -> Span:
     """Sets HTTP attributes for REST APIs and v1 HTTP APIs
 
     More info:
     https://docs.aws.amazon.com/apigateway/latest/developerguide/set-up-lambda-proxy-integrations.html#api-gateway-simple-proxy-for-lambda-input-format
     """
-    span.set_attribute(
-        SpanAttributes.HTTP_METHOD, lambda_event.get("httpMethod")
-    )
+    span.set_attribute(SpanAttributes.HTTP_METHOD, lambda_event.get("httpMethod"))
 
     if lambda_event.get("headers"):
         if "User-Agent" in lambda_event["headers"]:
@@ -198,16 +195,12 @@ def _set_api_gateway_v1_proxy_attributes(
                 f"{lambda_event['resource']}?{urlencode(lambda_event['queryStringParameters'])}",
             )
         else:
-            span.set_attribute(
-                SpanAttributes.HTTP_TARGET, lambda_event["resource"]
-            )
+            span.set_attribute(SpanAttributes.HTTP_TARGET, lambda_event["resource"])
 
     return span
 
 
-def _set_api_gateway_v2_proxy_attributes(
-    lambda_event: Any, span: Span
-) -> Span:
+def _set_api_gateway_v2_proxy_attributes(lambda_event: Any, span: Span) -> Span:
     """Sets HTTP attributes for v2 HTTP APIs
 
     More info:
@@ -258,16 +251,12 @@ def _instrument(
     tracer_provider: TracerProvider = None,
     meter_provider: MeterProvider = None,
 ):
-
     # pylint: disable=too-many-locals
     # pylint: disable=too-many-statements
     def _instrumented_lambda_handler_call(  # noqa pylint: disable=too-many-branches
         call_wrapped, instance, args, kwargs
     ):
-
-        orig_handler_name = ".".join(
-            [wrapped_module_name, wrapped_function_name]
-        )
+        orig_handler_name = ".".join([wrapped_module_name, wrapped_function_name])
 
         lambda_event = args[0]
 
@@ -331,9 +320,7 @@ def _instrument(
                     #
                     # See more:
                     # https://github.com/open-telemetry/semantic-conventions/blob/main/docs/faas/aws-lambda.md#all-triggers
-                    account_id = lambda_context.invoked_function_arn.split(
-                        ":"
-                    )[4]
+                    account_id = lambda_context.invoked_function_arn.split(":")[4]
                     span.set_attribute(
                         ResourceAttributes.CLOUD_ACCOUNT_ID,
                         account_id,
@@ -357,13 +344,9 @@ def _instrument(
                     span.set_attribute(SpanAttributes.FAAS_TRIGGER, "http")
 
                     if lambda_event.get("version") == "2.0":
-                        _set_api_gateway_v2_proxy_attributes(
-                            lambda_event, span
-                        )
+                        _set_api_gateway_v2_proxy_attributes(lambda_event, span)
                     else:
-                        _set_api_gateway_v1_proxy_attributes(
-                            lambda_event, span
-                        )
+                        _set_api_gateway_v1_proxy_attributes(lambda_event, span)
 
                     if isinstance(result, dict) and result.get("statusCode"):
                         span.set_attribute(
