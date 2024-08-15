@@ -27,9 +27,6 @@ Usage
     from opentelemetry.instrumentation.botocore import BotocoreInstrumentor
     from opentelemetry.instrumentation.aws_lambda import AwsLambdaInstrumentor
 
-    # Enable instrumentation
-    BotocoreInstrumentor().instrument()
-    AwsLambdaInstrumentor().instrument()
 
     # Lambda function
     def lambda_handler(event, context):
@@ -38,6 +35,9 @@ Usage
             print(bucket.name)
 
         return "200 OK"
+    # Enable instrumentation
+    BotocoreInstrumentor().instrument()
+    AwsLambdaInstrumentor().instrument() # Must be placed below the Lambda function to instrument it.
 
 API
 ---
